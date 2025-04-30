@@ -2,33 +2,39 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Advanced Calculator</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
   <style>
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #f3f4f6;
-      color: #111;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-      transition: background-color 0.3s, color 0.3s;
-      padding: 1rem;
-    }
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f3f4f6;
+  color: #111;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  transition: background-color 0.3s, color 0.3s;
+  padding: 1rem;
+}
     body.dark-mode {
       background-color: #000000;
       color: #ffffff;
     }
     .container {
-      display: flex;
-      flex-direction: row;
-      gap: 1rem;
-      width: 100%;
-      max-width: 1000px;
-    }
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 2rem;
+  width: 100%;
+  max-width: 1000px;
+  margin-top: 0.5rem;
+}
     .calculator {
       background-color: white;
       color: #111;
@@ -38,6 +44,8 @@
       width: 100%;
       max-width: 600px;
       transition: background-color 0.3s, color 0.3s;
+      display: flex;
+      flex-direction: column;
     }
     body.dark-mode .calculator {
       background-color: #000000;
@@ -67,7 +75,7 @@
       border: 1px solid #d1d5db;
     }
     .result-label {
-      font-size: 0.9rem;
+      font-size: 1rem;
       color: #6b7280;
       margin-top: 0.5rem;
     }
@@ -76,68 +84,16 @@
       font-weight: bold;
       font-size: 1.2rem;
       border: 1px solid #d1fae5;
-      padding: 1rem;
+      padding: 1.2rem;
       border-radius: 8px;
       margin-bottom: 1rem;
       width: 100%;
       box-sizing: border-box;
     }
-    .history-panel {
-      display: flex;
-      flex-direction: column;
-      min-width: 240px;
-      max-width: 300px;
-      border: 1px solid #ccc;
-      border-radius: 12px;
-      padding: 1rem;
-      background-color: #f9fafb;
-      transform: translateX(100%);
-      opacity: 0;
-      pointer-events: none;
-      transition: transform 0.3s ease, opacity 0.3s ease;
-    }
-    .history-panel.show {
-      transform: translateX(0);
-      opacity: 1;
-      pointer-events: auto;
-    }
-    body.dark-mode .history-panel {
-      background-color: #1a1a1a;
-      color: white;
-      border-color: #333;
-    }
-    .history-panel h4 {
-      margin: 0 0 0.5rem 0;
-    }
-    .history-content {
-      max-height: 300px;
-      overflow-y: auto;
-      font-size: 0.9rem;
-    }
     .buttons {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 0.5rem;
-    }
-    @media (max-width: 600px) {
-      .buttons {
-        grid-template-columns: repeat(3, 1fr);
-      }
-      .btn-actions {
-        grid-template-columns: repeat(2, 1fr);
-      }
-      .container {
-        flex-direction: column;
-        align-items: center;
-      }
-    }
-    @media (max-width: 400px) {
-      .buttons {
-        grid-template-columns: repeat(2, 1fr);
-      }
-      .btn-actions {
-        grid-template-columns: 1fr;
-      }
     }
     .btn {
       padding: 1rem;
@@ -160,11 +116,16 @@
       background: #555555;
     }
     .btn-actions {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.5rem;
-      margin-top: 0.5rem;
-    }
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-direction: row;
+  flex-shrink: 0;
+  flex-grow: 1;
+  flex-basis: 100%;
+}
     .clear {
       background: #ef4444;
       color: white;
@@ -185,50 +146,96 @@
       background: #6366f1;
       color: white;
     }
-  </style>
-  <script>
-    function toggleHistory() {
-      const historyPanel = document.getElementById('history-panel');
-      historyPanel.classList.toggle('show');
+    .history-panel {
+      position: absolute;
+      top: 2rem;
+      right: 2rem;
+      flex-direction: column;
+      min-width: 240px;
+      max-width: 300px;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      padding: 1rem;
+      background-color: #f9fafb;
+      transform: translateX(120%);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.3s ease, opacity 0.3s ease;
     }
+    .history-panel.show {
+      transform: translateX(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    body.dark-mode .history-panel {
+      background-color: #1a1a1a;
+      color: white;
+      border-color: #333;
+    }
+    .history-panel h4 {
+      margin: 0 0 0.5rem 0;
+    }
+    .history-content {
+      max-height: 300px;
+      overflow-y: auto;
+      font-size: 0.9rem;
+    }
+    .history-content::-webkit-scrollbar {
+      width: 8px;
+    }
+    .history-content::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+    .history-content::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 4px;
+    }
+    .history-content::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+    body.dark-mode .history-content::-webkit-scrollbar-track {
+      background: #2c2c2c;
+    }
+    body.dark-mode .history-content::-webkit-scrollbar-thumb {
+      background: #666;
+    }
+    body.dark-mode .history-content::-webkit-scrollbar-thumb:hover {
+      background: #999;
+    }
+  </style>
+<script>
+  function toggleHistory() {
+    const historyPanel = document.getElementById('history-panel');
+    historyPanel.classList.toggle('show');
+  }
 
-    document.addEventListener('click', function(event) {
-      const historyPanel = document.getElementById('history-panel');
-      const toggleButton = document.querySelector('.toggle-history');
-      if (!historyPanel.contains(event.target) && !toggleButton.contains(event.target)) {
-        historyPanel.classList.remove('show');
-      }
-    });
-  </script>
-</head>
-<body>
-  <div class="calculator">
-  <h3>Advanced Calculator</h3>
-    <div id="display" class="display">0</div>
-    <div class="result-label">Answer:</div>
-    <div id="result" class="result"></div>
-    <div id="history" class="history"></div>
-    <div class="buttons"></div>
+  document.addEventListener('click', function(event) {
+    const historyPanel = document.getElementById('history-panel');
+    const toggleButton = document.querySelector('.toggle-history');
+    if (!historyPanel.contains(event.target) && !toggleButton.contains(event.target)) {
+      historyPanel.classList.remove('show');
+    }
+  });
 
-    <div class="btn-actions">
-      <button class="btn toggle-history" onclick="toggleHistory()">Show/Hide History</button>
-      <button class="btn clear-history" onclick="clearHistory()">Clear History</button>
-      <button class="btn export-btn" onclick="exportHistory('txt')">Export .txt</button>
-      <button class="btn export-btn" onclick="exportHistory('csv')">Export .csv</button>
-      <button class="btn clear" onclick="clearCalc()">Clear</button>
-      <button class="btn dark-toggle" onclick="toggleDarkMode()">Toggle Dark Mode</button>
-    </div>
-  </div>
+  function updateHistoryPanel(history) {
+    const panel = document.querySelector('.history-content');
+    if (!panel) return;
+    panel.innerHTML = history.length === 0
+      ? '<p>No history yet.</p>'
+      : history.map(entry => `<div>${entry}</div>`).join('');
+    panel.scrollTop = panel.scrollHeight;
+    localStorage.setItem('calcHistory', JSON.stringify(history));
+  }
 
-  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const stored = localStorage.getItem('calcHistory');
+    const history = stored ? JSON.parse(stored) : [];
+    updateHistoryPanel(history);
+
     const display = document.getElementById('display');
     const result = document.getElementById('result');
-    const historyContainer = document.getElementById('history');
     const buttonsContainer = document.querySelector('.buttons');
-
-    let expression = "";
-    let history = JSON.parse(localStorage.getItem('calcHistory')) || [];
-
     const buttons = [
       "7", "8", "9", "/",
       "4", "5", "6", "*",
@@ -239,18 +246,41 @@
       "pi", "e", "abs(", ")"
     ];
 
-    function updateHistory() {
-      localStorage.setItem('calcHistory', JSON.stringify(history));
-      historyContainer.innerHTML = history.map(h => `<div>${h}</div>`).join('');
+    let expression = "";
+    let lastEvaluatedResult = null;
+    let justEvaluated = false;
+
+    function evaluateExpression() {
+      try {
+        const evalResult = math.evaluate(expression);
+        result.textContent = evalResult;
+        const history = JSON.parse(localStorage.getItem('calcHistory')) || [];
+        history.unshift(`${expression} = ${evalResult}`);
+        if (history.length > 10) history.pop();
+        updateHistoryPanel(history);
+        lastEvaluatedResult = evalResult;
+        justEvaluated = true;
+      } catch (e) {
+        result.textContent = 'Error';
+        lastEvaluatedResult = null;
+        justEvaluated = false;
+      }
+    }
+
+    function clearCalc() {
+      expression = "";
+      display.textContent = "0";
+      result.textContent = "";
     }
 
     function clearHistory() {
-      history = [];
-      localStorage.removeItem('calcHistory');
-      updateHistory();
+      updateHistoryPanel([]);
     }
 
-    function exportHistory(format) {
+    window.clearCalc = clearCalc;
+    window.clearHistory = clearHistory;
+    window.exportHistory = function(format) {
+      const history = JSON.parse(localStorage.getItem('calcHistory')) || [];
       if (history.length === 0) {
         alert("No history to export.");
         return;
@@ -269,44 +299,31 @@
       a.click();
       document.body.removeChild(a);
       alert(`History exported as .${format}`);
-    }
+    };
 
-    function evaluateExpression() {
-      try {
-        const evalResult = math.evaluate(expression);
-        result.textContent = evalResult;
-        history.unshift(`${expression} = ${evalResult}`);
-        if (history.length > 10) history.pop();
-        updateHistory();
-      } catch (e) {
-        result.textContent = 'Error';
-      }
-    }
-
-    function clearCalc() {
-      expression = "";
-      display.textContent = "0";
-      result.textContent = "";
-    }
-
-    function toggleHistory() {
-      historyContainer.style.display =
-        historyContainer.style.display === 'none' ? 'block' : 'none';
-    }
-
-    function toggleDarkMode() {
+    window.toggleDarkMode = function() {
       document.body.classList.toggle('dark-mode');
-    }
+    };
 
     buttons.forEach(btn => {
       const button = document.createElement('button');
       button.textContent = btn;
       button.className = 'btn';
       button.onclick = () => {
+        button.blur();
         if (btn === '=') {
           evaluateExpression();
         } else {
-          expression += btn;
+          if (justEvaluated) {
+            if (["+", "-", "*", "/", "^"].includes(btn)) {
+              expression = lastEvaluatedResult + btn;
+            } else {
+              expression = btn;
+            }
+            justEvaluated = false;
+          } else {
+            expression += btn;
+          }
           display.textContent = expression;
         }
       };
@@ -314,19 +331,54 @@
     });
 
     document.addEventListener("keydown", function(event) {
+      if (document.activeElement.tagName === "BUTTON") {
+        document.activeElement.blur();
+      }
       const key = event.key;
-      if ((/^[0-9\\+\\-\\*/\\.\\(\\)]$/.test(key)) || ["^"].includes(key)) {
-        expression += key;
+      if ((/^[0-9+\-*/.^()]$/.test(key))) {
+        if (justEvaluated) {
+          if (["+", "-", "*", "/", "^"].includes(key)) {
+            expression = lastEvaluatedResult + key;
+          } else {
+            expression = key;
+          }
+          justEvaluated = false;
+        } else {
+          expression += key;
+        }
         display.textContent = expression;
       } else if (key === "Enter") {
         evaluateExpression();
+        event.preventDefault();
       } else if (key === "Backspace") {
         expression = expression.slice(0, -1);
         display.textContent = expression || "0";
+        justEvaluated = false;
       }
     });
-
-    updateHistory();
-  </script>
+  });
+</script>
+<body>
+  <div class="container">
+    <div class="calculator">
+      <h3>Advanced Calculator</h3>
+      <div id="display" class="display">0</div>
+      <div class="result-label">Answer:</div>
+      <div id="result" class="result"></div>
+      <div class="buttons"></div>
+      <div class="btn-actions" style="flex-wrap: nowrap; flex-direction: row; justify-content: space-between;">
+  <button class="btn toggle-history" onclick="toggleHistory()">Show/Hide History</button>
+  <button class="btn clear-history" onclick="clearHistory()">Clear History</button>
+  <button class="btn export-btn" onclick="exportHistory('txt')">Export as .txt</button>
+  <button class="btn export-btn" onclick="exportHistory('csv')">Export as .csv</button>
+  <button class="btn clear" onclick="clearCalc()">Clear</button>
+  <button class="btn dark-toggle" onclick="toggleDarkMode()">Toggle Dark Mode</button>
+</div>
+    </div>
+    <div id="history-panel" class="history-panel">
+      <h4>History</h4>
+      <div class="history-content"></div>
+    </div>
+  </div>
 </body>
 </html>
