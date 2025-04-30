@@ -2,13 +2,11 @@
 <html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Advanced Calculator</title>
-  <!-- Math.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
   <style>
     :root {
-      /* Theme Variables */
       --bg: #f3f4f6;
       --fg: #111;
       --calc-bg: #fff;
@@ -16,11 +14,13 @@
       --panel-border: #ddd;
       --btn-grid: #e5e7eb;
       --btn-grid-hover: #d1d5db;
+      --btn-clear: #ef4444;
       --btn-history: #3b82f6;
       --btn-clear-history: #f97316;
       --btn-export: #10b981;
-      --btn-clear: #ef4444;
       --btn-theme: #6366f1;
+      --btn-copy: #8b5cf6;
+      --btn-mem: #facc15;
       --shadow: rgba(0,0,0,0.1);
     }
     [data-theme="dark"] {
@@ -33,19 +33,20 @@
       --btn-grid-hover: #444;
     }
     * { box-sizing: border-box; }
-    body {
-      margin: 0; padding: 1rem;
-      background: var(--bg); color: var(--fg);
+    html, body {
+      margin: 0;
+      padding: 1rem;
+      background: var(--bg);
+      color: var(--fg);
       font-family: 'Segoe UI', Tahoma, Verdana, sans-serif;
-      display: flex; justify-content: center;
-      touch-action: manipulation;
     }
+    body { display: flex; justify-content: center; align-items: flex-start; }
     .container {
       display: grid;
       grid-template-columns: 1fr 300px;
       gap: 1rem;
-      max-width: 900px;
       width: 100%;
+      max-width: 900px;
       margin: auto;
     }
     .calculator {
@@ -53,30 +54,44 @@
       padding: 1.5rem;
       border-radius: 12px;
       box-shadow: 0 4px 12px var(--shadow);
-      display: flex; flex-direction: column; gap: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
     }
-    h3 { margin:0 0 .5rem; }
-    .display, .result {
+    h3 { margin: 0 0 0.5rem; }
+    .display {
+      width: 100%;
       background: var(--panel-bg);
-      border:1px solid var(--panel-border);
-      border-radius:8px;
-      padding:1rem;
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 1rem; /* no extra right padding */
       font-family: monospace;
       text-align: right;
     }
-    .display { font-size:1.5rem; }
-    .result-label { margin:0; color:#6b7280; }
-    .result { font-size:1.25rem; font-weight:bold; }
+    .result {
+      width: 90%;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 1rem 4rem 1rem 1rem; /* extra right padding for icon */
+      font-family: monospace;
+      text-align: left;
+      font-size: 1.25rem;
+      font-weight: bold;
+    }
+    .display { font-size: 1.5rem; }
+    .result-label { margin: 0; color: #6b7280; }
+    .result { font-size: 1.25rem; font-weight: bold; }
     .buttons {
-      display:grid;
-      grid-template-columns:repeat(4, minmax(0,1fr));
-      gap:.5rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+      gap: 0.5rem;
     }
     .btn {
       background: var(--btn-grid);
       border: none;
       border-radius: 8px;
-      padding: 0.75rem 1rem;  /* reduced size */
+      padding: 0.75rem 1rem;
       font-size: 1rem;
       color: var(--fg);
       cursor: pointer;
@@ -84,39 +99,82 @@
       white-space: nowrap;
     }
     .btn:hover { background: var(--btn-grid-hover); }
-    .actions { display:flex; gap:.5rem; }
-    .actions .btn {
-      flex: 1;
-      padding: 0.5rem;
-      font-size: 1rem;
-      white-space: nowrap;
+    .btn-clear { background: var(--btn-clear); color: #fff; }
+    .btn-history { background: var(--btn-history); color: #fff; }
+    .btn-clear-history { background: var(--btn-clear-history); color: #fff; }
+    .btn-export { background: var(--btn-export); color: #fff; }
+    .btn-theme { background: var(--btn-theme); color: #fff; }
+    .btn-copy { background: var(--btn-copy); color: #fff; }
+    .btn-mem { background: var(--btn-mem); color: #000; }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
     }
-    .btn-history { background: var(--btn-history); color:#fff; }
-    .btn-clear-history { background: var(--btn-clear-history); color:#fff; }
-    .btn-export { background: var(--btn-export); color:#fff; }
-    .btn-clear { background: var(--btn-clear); color:#fff; }
-    .btn-theme { background: var(--btn-theme); color:#fff; }
+    .actions .btn {
+      flex: 1 1 100px;
+      padding: 0.75rem;
+      font-size: 1rem;
+    }
+    .result-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+    .copy-icon {
+      position: absolute;
+      right: 0.5rem;
+      padding: 0.5rem;
+      border-radius: 50%;
+    }
+    .graph-canvas {
+      display: none;
+      width: 100%;
+      height: 200px;
+      border: 1px solid var(--panel-border);
+      margin-top: 1rem;
+    }
     .history-panel {
       background: var(--calc-bg);
-      border:1px solid var(--panel-border);
-      border-radius:12px;
-      box-shadow:0 4px 12px var(--shadow);
-      display:none;
-      flex-direction:column;
-      overflow:hidden;
-      align-self:start;
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      box-shadow: 0 4px 12px var(--shadow);
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      align-self: start;
+      max-height: 100%;
     }
-    .history-panel.show { display:flex; }
+    .history-panel.show { display: flex; }
     .history-panel h4 {
-      margin:0; padding:1rem;
+      margin: 0;
+      padding: 1rem;
       background: var(--panel-bg);
-      border-bottom:1px solid var(--panel-border);
+      border-bottom: 1px solid var(--panel-border);
     }
-    .history-content { flex:1; padding:.5rem 1rem; overflow-y:auto; }
-    .history-entry { padding:.25rem 0; border-bottom:1px solid var(--panel-border); font-size:.9rem; }
-    @media (max-width:768px) {
-      .container { grid-template-columns:1fr; }
-      .history-panel { position:static; width:100%; margin-top:1rem; border-radius:8px; }
+    .history-search {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-bottom: 1px solid var(--panel-border);
+      outline: none;
+      font-size: 1rem;
+    }
+    .history-content {
+      flex: 1;
+      padding: 0.5rem 1rem;
+      overflow-y: auto;
+    }
+    .history-entry {
+      padding: 0.25rem 0;
+      border-bottom: 1px solid var(--panel-border);
+      font-size: 0.9rem;
+    }
+    @media (max-width: 768px) {
+      .container { grid-template-columns: 1fr; }
+      .history-panel { position: static; width: 100%; margin-top: 1rem; border-radius: 8px; }
+      .buttons { grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); }
+      .actions .btn { flex: 1 1 80px; }
     }
   </style>
 </head>
@@ -126,7 +184,10 @@
       <h3>Advanced Calculator</h3>
       <div id="display" class="display">0</div>
       <p class="result-label">Answer:</p>
-      <div id="result" class="result"></div>
+      <div class="result-wrapper">
+        <div id="result" class="result">0</div>
+        <button class="btn btn-copy copy-icon" title="Copy result">📋</button>
+      </div>
       <div class="buttons"></div>
       <div class="actions">
         <button class="btn btn-history toggle-history">History</button>
@@ -134,115 +195,253 @@
         <button class="btn btn-export export-btn" data-format="txt">Export .txt</button>
         <button class="btn btn-export export-btn" data-format="csv">Export .csv</button>
         <button class="btn btn-theme theme-toggle">🌓</button>
+        <button class="btn btn-graph graph-toggle">Graph</button>
       </div>
+      <canvas id="graph-canvas" class="graph-canvas"></canvas>
     </div>
     <div id="history-panel" class="history-panel">
       <h4>History</h4>
+      <input type="text" class="history-search" placeholder="Filter history…">
       <div class="history-content"></div>
     </div>
   </div>
   <script>
-    const debounce = (fn, d) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), d); }; };
+    // Debounce helper
+    const debounce = (fn, delay) => { let timer; return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); }; };
+    // Auto theme based on hour
     const root = document.documentElement;
-    root.setAttribute('data-theme', localStorage.getItem('theme') || 'light');
+    (() => {
+      const hr = new Date().getHours();
+      root.setAttribute('data-theme', (hr >= 19 || hr < 6) ? 'dark' : 'light');
+    })();
+    // Manual theme toggle
     document.querySelector('.theme-toggle').addEventListener('click', () => {
-      const next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-      root.setAttribute('data-theme', next);
-      localStorage.setItem('theme', next);
+      const mode = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      root.setAttribute('data-theme', mode);
+      localStorage.setItem('theme', mode);
     });
     class Calculator {
       constructor() {
+        // Elements
         this.display = document.getElementById('display');
         this.resultEl = document.getElementById('result');
+        this.buttonsContainer = document.querySelector('.buttons');
         this.historyPanel = document.getElementById('history-panel');
         this.historyContent = document.querySelector('.history-content');
+        this.historySearch = document.querySelector('.history-search');
+        this.canvas = document.getElementById('graph-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        // State
         this.expr = '';
         this.just = false;
-        this.last = null;
+        this.last = 0;
+        this.memory = 0;
+        this.percentMode = false;
+        this.percentVal = '';
         this.history = JSON.parse(localStorage.getItem('calcHistory') || '[]');
         this.saveHistory = debounce(h => localStorage.setItem('calcHistory', JSON.stringify(h)), 300);
+        // Init
         this.initButtons();
         this.renderHistory();
+        this.initShortcuts();
       }
       initButtons() {
-        const btnContainer = document.querySelector('.buttons');
-        const tokens = ['7','8','9','/','4','5','6','*','1','2','3','-','0','.','=','+','(',')','sqrt(','^','sin(','cos(','tan(','log10(','pi','e','abs(', 'Clear'];
-        // place Clear after abs(
-        tokens.splice(tokens.indexOf('Clear'), 1);
-        tokens.push('Clear');
+        const tokens = [
+          '1','2','3','+','-','/','4','5',
+          '6','*','%','.','7','8','9',
+          '(' ,')','=','^','0','sqrt(','sin(','cos(','tan(','log10(','pi','e','phi','gamma',
+          'ANS','abs(',
+          'M+','M-','MR','MC',
+          '°C→°F','°F→°C',
+          'Km→m','m→Km','g→Kg','Kg→g',
+          'Clear'
+        ];
         tokens.forEach(tok => {
           const btn = document.createElement('button');
           btn.className = 'btn';
           btn.textContent = tok;
-          if (tok === 'Clear') btn.addEventListener('click', () => this.clearAll());
-          else if (tok === '=') btn.addEventListener('click', () => this.calculate());
-          else btn.addEventListener('click', () => this.append(tok));
-          btnContainer.appendChild(btn);
+          // use arrow to preserve "this"
+          btn.addEventListener('click', () => { this.handleToken(tok); btn.blur(); });
+          this.buttonsContainer.appendChild(btn);
+        });(tok => {
+          const btn = document.createElement('button');
+          btn.className = 'btn';
+          btn.textContent = tok;
+          btn.addEventListener('click', () => { calc.handleToken(tok); btn.blur(); });
+          this.buttonsContainer.appendChild(btn);
         });
-        document.querySelector('.clear-history').addEventListener('click', () => this.clearHistory());
-        document.querySelectorAll('.export-btn').forEach(b => b.addEventListener('click', () => this.exportHistory(b.dataset.format)));
+        // Copy icon
+        document.querySelector('.copy-icon').addEventListener('click', () => {
+          navigator.clipboard.writeText(this.resultEl.textContent);
+        });
+        // History controls
         document.querySelector('.toggle-history').addEventListener('click', () => this.historyPanel.classList.toggle('show'));
+        document.querySelector('.clear-history').addEventListener('click', () => this.clearHistory());
+        document.querySelectorAll('.export-btn').forEach(b => b.addEventListener('click', e => this.exportHistory(e.target.dataset.format)));
+        // Graph toggle
+        document.querySelector('.graph-toggle').addEventListener('click', () => this.toggleGraph());
+        // Filter history
+        this.historySearch.addEventListener('input', e => this.filterHistory(e.target.value));
+        // Keyboard
         document.addEventListener('keydown', e => {
-          if (/^[0-9+\-*/^()]$/.test(e.key)) this.append(e.key);
+          if (document.activeElement === this.historySearch) return;
+          if (/^[0-9+\-*/^()]$/.test(e.key)) this.handleToken(e.key);
+          else if (e.key === '%') this.handleToken('%');
           else if (e.key === 'Enter') this.calculate();
           else if (e.key === 'Backspace') this.backspace();
           else if (e.key === 'Escape') this.clearAll();
-        });
+        });;
+      }
+      handleToken(tok) {
+        const numericOps = /^[0-9.+\-*/^()]$/;
+        if (numericOps.test(tok)) return this.append(tok);
+        switch (tok) {
+          case 'Clear': return this.clearAll();
+          case '=': return this.calculate();
+          case 'ANS': return this.append(this.last);
+          case '%': {
+              // Option A: immediate percent calculation
+              const base = this.expr && !this.just ? this.expr : this.last.toString();
+              this.expr = base + '/100';
+              this.calculate();
+              return;
+            }
+          case 'M+': this.memory += this.last; return;
+          case 'M-': this.memory -= this.last; return;
+          case 'MR': return this.append(this.memory);
+          case 'MC': return this.memory = 0;
+          case 'phi': return this.append((1 + Math.sqrt(5)) / 2);
+          case 'gamma': return this.append(0.5772156649015329);
+          case '°C→°F': return this.convertTemp('CtoF');
+          case '°F→°C': return this.convertTemp('FtoC');
+          case 'km→m': return this.convertUnit('kmToM');
+          case 'm→km': return this.convertUnit('mToKm');
+          case 'g→kg': return this.convertUnit('gToKg');
+          case 'kg→g': return this.convertUnit('kgToG');
+          default: return this.append(tok);
+        }
       }
       append(ch) {
-        if (this.just && !/^[+\-*/^]$/.test(ch)) { this.expr = ''; this.just = false; }
-        if (this.just && /^[+\-*/^]$/.test(ch)) { this.expr = this.last + ch; this.just = false; }
+        if (this.percentMode) return this.buildPercent(ch);
+        if (this.just && !/[+\-*/^]/.test(ch)) this.expr = '';
+        if (this.just && /[+\-*/^]/.test(ch)) this.expr = this.last + ch;
         else this.expr += ch;
         this.display.textContent = this.expr || '0';
-      }
-      clearAll() {
-        this.expr = '';
-        this.display.textContent = '0';
-        this.resultEl.textContent = '';
         this.just = false;
-        document.activeElement.blur();
+      }
+      startPercentMode() {
+        // always enter percent input mode
+        this.percentMode = true;
+        this.percentVal = '';
+        this.display.textContent = '';
+        this.just = false;
+      }
+      buildPercent(ch) {
+        if (!/[0-9.]/.test(ch)) return;
+        this.percentVal += ch;
+        this.display.textContent = this.percentVal + '%';
+      }
+      calculate() {
+        if (this.percentMode) return this.finishPercent();
+        try {
+          const res = math.evaluate(this.expr);
+          this.showResult(res, `${this.expr} = ${res}`);
+        } catch (err) {
+          this.resultEl.textContent = err.message.includes('Parenthesis') ? 'Mismatched parentheses' : 'Syntax error';
+        }
+      }
+      finishPercent() {
+        const p = parseFloat(this.percentVal) / 100;
+        const res = this.last * p;
+        this.showResult(res, `${this.last} × ${this.percentVal}% = ${res}`);
+        this.percentMode = false;
+      }
+      showResult(res, histEntry) {
+        this.resultEl.textContent = res;
+        this.last = res;
+        this.just = true;
+        this.history.unshift(histEntry);
+        if (this.history.length > 50) this.history.pop();
+        this.renderHistory();
       }
       backspace() {
         this.expr = this.expr.slice(0, -1);
         this.display.textContent = this.expr || '0';
       }
-      calculate() {
-        try {
-          const r = math.evaluate(this.expr);
-          this.last = r;
-          this.resultEl.textContent = r;
-          this.just = true;
-          this.history.unshift(`${this.expr} = ${r}`);
-          if (this.history.length > 50) this.history.pop();
-          this.renderHistory();
-        } catch {
-          this.resultEl.textContent = 'Error';
+      clearAll() {
+        this.expr = '';
+        this.display.textContent = '0';
+        this.resultEl.textContent = '0';
+        this.just = false;
+      }
+      convertTemp(mode) {
+        const val = (this.expr && !this.just) ? parseFloat(this.expr) : this.last;
+        let res;
+        if (mode === 'CtoF') res = val * 9/5 + 32;
+        else res = (val - 32) * 5/9;
+        this.showResult(res, `${val} ${mode === 'CtoF' ? '°C→' : '°F→'}${res.toFixed(2)}°${mode === 'CtoF' ? 'F' : 'C'}`);
+      }
+      convertUnit(unit) {
+        const val = (this.expr && !this.just) ? parseFloat(this.expr) : this.last;
+        let res, label;
+        switch (unit) {
+          case 'kmToM': res = val * 1000; label = `km → m`; break;
+          case 'mToKm': res = val / 1000; label = `m → km`; break;
+          case 'gToKg': res = val / 1000; label = `g → kg`; break;
+          case 'kgToG': res = val * 1000; label = `kg → g`; break;
         }
+        this.showResult(res, `${val} ${label} = ${res.toFixed(2)}`);
+      }
+      toggleGraph() {
+        if (this.canvas.style.display === 'block') { this.canvas.style.display = 'none'; return; }
+        this.canvas.style.display = 'block';
+        const expr = prompt('Plot f(x)=', this.expr || 'x');
+        if (!expr) return;
+        const f = math.compile(expr);
+        const { width, height } = this.canvas;
+        this.ctx.clearRect(0, 0, width, height);
+        this.ctx.beginPath();
+        for (let i = 0; i <= width; i++) {
+          const x = (i / width) * 20 - 10;
+          let y;
+          try { y = f.evaluate({ x }); } catch { return; }
+          const j = height / 2 - (y / 10) * (height / 2);
+          i === 0 ? this.ctx.moveTo(i, j) : this.ctx.lineTo(i, j);
+        }
+        this.ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--fg').trim();
+        this.ctx.stroke();
       }
       renderHistory() {
-        this.historyContent.innerHTML = this.history.length
-          ? this.history.map(h => `<div class="history-entry">${h}</div>`).join('')
-          : '<p>No history.</p>';
-        this.historyContent.scrollTop = this.historyContent.scrollHeight;
+        this.filtered = this.history;
+        this._renderHistory();
         this.saveHistory(this.history);
+      }
+      filterHistory(q) {
+        const term = q.toLowerCase();
+        this.filtered = this.history.filter(h => h.toLowerCase().includes(term));
+        this._renderHistory();
+      }
+      _renderHistory() {
+        this.historyContent.innerHTML = this.filtered.length
+          ? this.filtered.map(h => `<div class="history-entry">${h}</div>`).join('')
+          : '<p>No matches.</p>';
       }
       clearHistory() {
         this.history = [];
         this.renderHistory();
       }
       exportHistory(fmt) {
-        if (!this.history.length) return alert('No history');
-        const data = fmt === 'csv'
-          ? `Expression,Result\n${this.history.map(h => h.replace(' = ', ',')).join('\n')}`
-          : this.history.join('\n');
-        const blob = new Blob([data], { type: 'text/plain' });
+        if (!this.history.length) { alert('No history'); return; }
+        const header = fmt === 'csv' ? 'Expression,Result\n' : '';
+        const body = this.history.map(h => fmt === 'csv' ? h.replace(' = ', ',') : h).join('\n');
+        const blob = new Blob([header + body], { type: 'text/plain' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = `history.${fmt}`;
         a.click();
       }
     }
-    window.onload = () => new Calculator();
+    window.onload = () => { window.calc = new Calculator(); };
   </script>
 </body>
 </html>
