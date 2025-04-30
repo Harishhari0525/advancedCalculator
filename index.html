@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Advanced Calculator</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
-  <!-- Your CSS here (already included above) -->
-  <!-- [Paste from Canvas if needed] -->
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -18,10 +16,18 @@
       height: 100vh;
       margin: 0;
       transition: background-color 0.3s, color 0.3s;
+      padding: 1rem;
     }
     body.dark-mode {
       background-color: #000000;
       color: #ffffff;
+    }
+    .container {
+      display: flex;
+      flex-direction: row;
+      gap: 1rem;
+      width: 100%;
+      max-width: 1000px;
     }
     .calculator {
       background-color: white;
@@ -29,21 +35,25 @@
       padding: 1.5rem;
       border-radius: 16px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      max-width: 400px;
       width: 100%;
+      max-width: 600px;
       transition: background-color 0.3s, color 0.3s;
     }
     body.dark-mode .calculator {
       background-color: #000000;
       color: #ffffff;
     }
-    .display, .result, .history {
+    .calculator h3 {
+      text-align: center;
+      margin-top: 0;
+      margin-bottom: 1rem;
+    }
+    .display, .result {
       background-color: #f9fafb;
       color: inherit;
     }
     body.dark-mode .display,
-    body.dark-mode .result,
-    body.dark-mode .history {
+    body.dark-mode .result {
       background-color: #1a1a1a;
       color: #ffffff;
     }
@@ -59,30 +69,75 @@
     .result-label {
       font-size: 0.9rem;
       color: #6b7280;
+      margin-top: 0.5rem;
     }
     .result {
       font-family: monospace;
       font-weight: bold;
       font-size: 1.2rem;
       border: 1px solid #d1fae5;
-      padding: 0.5rem 1rem;
+      padding: 1rem;
       border-radius: 8px;
       margin-bottom: 1rem;
+      width: 100%;
+      box-sizing: border-box;
     }
-    .history {
-      max-height: 100px;
+    .history-panel {
+      display: flex;
+      flex-direction: column;
+      min-width: 240px;
+      max-width: 300px;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      padding: 1rem;
+      background-color: #f9fafb;
+      transform: translateX(100%);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+    .history-panel.show {
+      transform: translateX(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    body.dark-mode .history-panel {
+      background-color: #1a1a1a;
+      color: white;
+      border-color: #333;
+    }
+    .history-panel h4 {
+      margin: 0 0 0.5rem 0;
+    }
+    .history-content {
+      max-height: 300px;
       overflow-y: auto;
       font-size: 0.9rem;
-      padding: 0.5rem;
-      border-radius: 8px;
-      margin-bottom: 1rem;
-      display: none;
-      border: 1px solid #e5e7eb;
     }
     .buttons {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 0.5rem;
+    }
+    @media (max-width: 600px) {
+      .buttons {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .btn-actions {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .container {
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+    @media (max-width: 400px) {
+      .buttons {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .btn-actions {
+        grid-template-columns: 1fr;
+      }
     }
     .btn {
       padding: 1rem;
@@ -106,7 +161,7 @@
     }
     .btn-actions {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 0.5rem;
       margin-top: 0.5rem;
     }
@@ -131,9 +186,24 @@
       color: white;
     }
   </style>
+  <script>
+    function toggleHistory() {
+      const historyPanel = document.getElementById('history-panel');
+      historyPanel.classList.toggle('show');
+    }
+
+    document.addEventListener('click', function(event) {
+      const historyPanel = document.getElementById('history-panel');
+      const toggleButton = document.querySelector('.toggle-history');
+      if (!historyPanel.contains(event.target) && !toggleButton.contains(event.target)) {
+        historyPanel.classList.remove('show');
+      }
+    });
+  </script>
 </head>
 <body>
   <div class="calculator">
+  <h3>Advanced Calculator</h3>
     <div id="display" class="display">0</div>
     <div class="result-label">Answer:</div>
     <div id="result" class="result"></div>
