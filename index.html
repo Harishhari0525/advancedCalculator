@@ -75,7 +75,7 @@
       border: 1px solid #d1d5db;
     }
     .result-label {
-      font-size: 1rem;
+      font-size: 0.9rem;
       color: #6b7280;
       margin-top: 0.5rem;
     }
@@ -84,7 +84,7 @@
       font-weight: bold;
       font-size: 1.2rem;
       border: 1px solid #d1fae5;
-      padding: 1.2rem;
+      padding: 1rem;
       border-radius: 8px;
       margin-bottom: 1rem;
       width: 100%;
@@ -203,12 +203,86 @@
     body.dark-mode .history-content::-webkit-scrollbar-thumb:hover {
       background: #999;
     }
-  </style>
+    @media (max-width: 768px) {
+  .container {
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+  }
+  .btn-actions {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .btn {
+    flex: 1 1 40%;
+    max-width: 45%;
+  }
+  .history-panel {
+    display: none;
+    position: relative;
+    top: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    transform: none !important;
+    opacity: 1 !important;
+    pointer-events: auto;
+    margin-top: 1rem;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+  }
+  .history-panel.slide {
+    display: block;
+    max-height: 300px;
+  }
+  .toggle-history {
+    position: sticky;
+    bottom: 0.5rem;
+    z-index: 10;
+  }
+}
+  .btn-actions {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .btn {
+    flex: 1 1 40%;
+    max-width: 45%;
+  }
+  .history-panel {
+    display: none;
+  }
+}
+    .btn-actions {
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .btn {
+      flex: 1 1 40%;
+      max-width: 45%;
+    }
+    .history-panel {
+      position: static;
+      transform: none !important;
+      opacity: 1 !important;
+      pointer-events: auto;
+      margin-top: 1rem;
+      width: 100%;
+      max-width: 100%;
+    }
+  }
+</style>
 <script>
   function toggleHistory() {
-    const historyPanel = document.getElementById('history-panel');
+  const historyPanel = document.getElementById('history-panel');
+  if (window.innerWidth <= 768) {
+    historyPanel.classList.toggle('slide');
+  } else {
     historyPanel.classList.toggle('show');
   }
+} else {
+    historyPanel.classList.toggle('show');
+  }
+}
 
   document.addEventListener('click', function(event) {
     const historyPanel = document.getElementById('history-panel');
@@ -369,8 +443,8 @@
       <div class="btn-actions" style="flex-wrap: nowrap; flex-direction: row; justify-content: space-between;">
   <button class="btn toggle-history" onclick="toggleHistory()">Show/Hide History</button>
   <button class="btn clear-history" onclick="clearHistory()">Clear History</button>
-  <button class="btn export-btn" onclick="exportHistory('txt')">Export as .txt</button>
-  <button class="btn export-btn" onclick="exportHistory('csv')">Export as .csv</button>
+  <button class="btn export-btn" onclick="exportHistory('txt')">Export .txt</button>
+  <button class="btn export-btn" onclick="exportHistory('csv')">Export .csv</button>
   <button class="btn clear" onclick="clearCalc()">Clear</button>
   <button class="btn dark-toggle" onclick="toggleDarkMode()">Toggle Dark Mode</button>
 </div>
