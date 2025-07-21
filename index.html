@@ -67,6 +67,9 @@
       padding: 1rem; /* no extra right padding */
       font-family: monospace;
       text-align: right;
+      font-size: 1.5rem;
+      min-height: 58px;
+      word-wrap: break-word;
     }
     .result {
       width: 90%;
@@ -78,10 +81,10 @@
       text-align: left;
       font-size: 1.25rem;
       font-weight: bold;
+      min-height: 52px;
+      word-wrap: break-word;
     }
-    .display { font-size: 1.5rem; }
     .result-label { margin: 0; color: #6b7280; }
-    .result { font-size: 1.25rem; font-weight: bold; }
     .buttons {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
@@ -169,11 +172,13 @@
       padding: 0.25rem 0;
       border-bottom: 1px solid var(--panel-border);
       font-size: 0.9rem;
+      cursor: pointer;
     }
+    .history-entry:hover { background-color: var(--btn-grid-hover); }
     @media (max-width: 768px) {
       .container { grid-template-columns: 1fr; }
       .history-panel { position: static; width: 100%; margin-top: 1rem; border-radius: 8px; }
-      .buttons { grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); }
+      .buttons { grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); }
       .actions .btn { flex: 1 1 80px; }
     }
   </style>
@@ -205,243 +210,309 @@
       <div class="history-content"></div>
     </div>
   </div>
-  <script>
-    // Debounce helper
-    const debounce = (fn, delay) => { let timer; return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); }; };
-    // Auto theme based on hour
-    const root = document.documentElement;
-    (() => {
-      const hr = new Date().getHours();
-      root.setAttribute('data-theme', (hr >= 19 || hr < 6) ? 'dark' : 'light');
-    })();
-    // Manual theme toggle
-    document.querySelector('.theme-toggle').addEventListener('click', () => {
-      const mode = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-      root.setAttribute('data-theme', mode);
-      localStorage.setItem('theme', mode);
-    });
-    class Calculator {
-      constructor() {
-        // Elements
-        this.display = document.getElementById('display');
-        this.resultEl = document.getElementById('result');
-        this.buttonsContainer = document.querySelector('.buttons');
-        this.historyPanel = document.getElementById('history-panel');
-        this.historyContent = document.querySelector('.history-content');
-        this.historySearch = document.querySelector('.history-search');
-        this.canvas = document.getElementById('graph-canvas');
-        this.ctx = this.canvas.getContext('2d');
-        // State
-        this.expr = '';
-        this.just = false;
-        this.last = 0;
-        this.memory = 0;
-        this.percentMode = false;
-        this.percentVal = '';
-        this.history = JSON.parse(localStorage.getItem('calcHistory') || '[]');
-        this.saveHistory = debounce(h => localStorage.setItem('calcHistory', JSON.stringify(h)), 300);
-        // Init
-        this.initButtons();
-        this.renderHistory();
-        this.initShortcuts();
-      }
-      initButtons() {
-        const tokens = [
-          '1','2','3','+','-','/','4','5',
-          '6','*','%','.','7','8','9',
-          '(' ,')','=','^','0','sqrt(','sin(','cos(','tan(','log10(','pi','e','phi','gamma',
-          'ANS','abs(',
-          'M+','M-','MR','MC',
-          '°C→°F','°F→°C',
-          'Km→m','m→Km','g→Kg','Kg→g',
-          'Clear'
-        ];
-        tokens.forEach(tok => {
-          const btn = document.createElement('button');
-          btn.className = 'btn';
-          btn.textContent = tok;
-          // use arrow to preserve "this"
-          btn.addEventListener('click', () => { this.handleToken(tok); btn.blur(); });
-          this.buttonsContainer.appendChild(btn);
-        });(tok => {
-          const btn = document.createElement('button');
-          btn.className = 'btn';
-          btn.textContent = tok;
-          btn.addEventListener('click', () => { calc.handleToken(tok); btn.blur(); });
-          this.buttonsContainer.appendChild(btn);
-        });
-        // Copy icon
-        document.querySelector('.copy-icon').addEventListener('click', () => {
-          navigator.clipboard.writeText(this.resultEl.textContent);
-        });
-        // History controls
-        document.querySelector('.toggle-history').addEventListener('click', () => this.historyPanel.classList.toggle('show'));
-        document.querySelector('.clear-history').addEventListener('click', () => this.clearHistory());
-        document.querySelectorAll('.export-btn').forEach(b => b.addEventListener('click', e => this.exportHistory(e.target.dataset.format)));
-        // Graph toggle
-        document.querySelector('.graph-toggle').addEventListener('click', () => this.toggleGraph());
-        // Filter history
-        this.historySearch.addEventListener('input', e => this.filterHistory(e.target.value));
-        // Keyboard
-        document.addEventListener('keydown', e => {
-          if (document.activeElement === this.historySearch) return;
-          if (/^[0-9+\-*/^()]$/.test(e.key)) this.handleToken(e.key);
-          else if (e.key === '%') this.handleToken('%');
-          else if (e.key === 'Enter') this.calculate();
-          else if (e.key === 'Backspace') this.backspace();
-          else if (e.key === 'Escape') this.clearAll();
-        });;
-      }
-      handleToken(tok) {
-        const numericOps = /^[0-9.+\-*/^()]$/;
-        if (numericOps.test(tok)) return this.append(tok);
-        switch (tok) {
-          case 'Clear': return this.clearAll();
-          case '=': return this.calculate();
-          case 'ANS': return this.append(this.last);
-          case '%': {
-              // Option A: immediate percent calculation
-              const base = this.expr && !this.just ? this.expr : this.last.toString();
-              this.expr = base + '/100';
-              this.calculate();
-              return;
-            }
-          case 'M+': this.memory += this.last; return;
-          case 'M-': this.memory -= this.last; return;
-          case 'MR': return this.append(this.memory);
-          case 'MC': return this.memory = 0;
-          case 'phi': return this.append((1 + Math.sqrt(5)) / 2);
-          case 'gamma': return this.append(0.5772156649015329);
-          case '°C→°F': return this.convertTemp('CtoF');
-          case '°F→°C': return this.convertTemp('FtoC');
-          case 'km→m': return this.convertUnit('kmToM');
-          case 'm→km': return this.convertUnit('mToKm');
-          case 'g→kg': return this.convertUnit('gToKg');
-          case 'kg→g': return this.convertUnit('kgToG');
-          default: return this.append(tok);
+<script>
+  // Debounce helper
+  const debounce = (fn, delay) => { let timer; return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); }; };
+  
+  // Auto theme based on hour
+  const root = document.documentElement;
+  (() => {
+    const hr = new Date().getHours();
+    root.setAttribute('data-theme', (hr >= 19 || hr < 6) ? 'dark' : 'light');
+  })();
+  
+  // Manual theme toggle
+  document.querySelector('.theme-toggle').addEventListener('click', () => {
+    const currentTheme = root.getAttribute('data-theme');
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    root.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+  });
+  
+  class Calculator {
+    constructor() {
+      // Elements
+      this.display = document.getElementById('display');
+      this.resultEl = document.getElementById('result');
+      this.buttonsContainer = document.querySelector('.buttons');
+      this.historyPanel = document.getElementById('history-panel');
+      this.historyContent = document.querySelector('.history-content');
+      this.historySearch = document.querySelector('.history-search');
+      this.canvas = document.getElementById('graph-canvas');
+      this.ctx = this.canvas.getContext('2d');
+      // State
+      this.expr = '';
+      this.justCalculated = false;
+      this.lastResult = 0;
+      this.memory = 0;
+      this.history = JSON.parse(localStorage.getItem('calcHistory') || '[]');
+      this.filteredHistory = [];
+      this.saveHistory = debounce(h => localStorage.setItem('calcHistory', JSON.stringify(h)), 300);
+      
+      // Init
+      this.initButtons();
+      this.renderHistory();
+    }
+    
+    initButtons() {
+      const tokens = [
+        'C', '(', ')', '/',
+        '7', '8', '9', '*',
+        '4', '5', '6', '-',
+        '1', '2', '3', '+',
+        '0', '.', '%', '=',
+        'sin(', 'cos(', 'tan(', 'log10(',
+        'sqrt(', 'abs(', '^', 'pi',
+        'e', 'phi', 'gamma', 'ANS',
+        'M+', 'M-', 'MR', 'MC',
+        '°C→°F', '°F→°C', 'km→m', 'm→km',
+        'g→kg', 'kg→g'
+      ];
+      
+      tokens.forEach(tok => {
+        const btn = document.createElement('button');
+        btn.className = 'btn';
+        if (tok === 'C') btn.classList.add('btn-clear');
+        if (tok === '=') btn.classList.add('btn-history'); // style equals button
+        btn.textContent = tok;
+        btn.addEventListener('click', () => { this.handleToken(tok); btn.blur(); });
+        this.buttonsContainer.appendChild(btn);
+      });
+      
+      // Copy icon
+      document.querySelector('.copy-icon').addEventListener('click', () => {
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(this.resultEl.textContent).then(() => {
+            alert('Result copied to clipboard!');
+          });
         }
+      });
+      
+      // History controls
+      document.querySelector('.toggle-history').addEventListener('click', () => this.historyPanel.classList.toggle('show'));
+      document.querySelector('.clear-history').addEventListener('click', () => this.clearHistory());
+      document.querySelectorAll('.export-btn').forEach(b => b.addEventListener('click', e => this.exportHistory(e.target.dataset.format)));
+      
+      // Graph toggle
+      document.querySelector('.graph-toggle').addEventListener('click', () => this.toggleGraph());
+      
+      // Filter history
+      this.historySearch.addEventListener('input', e => this.filterHistory(e.target.value));
+      
+      // Keyboard support
+      document.addEventListener('keydown', e => {
+        if (document.activeElement === this.historySearch) return; // Don't interfere with history search
+        e.preventDefault();
+        if (/^[0-9.+\-*/^()%]$/.test(e.key)) this.handleToken(e.key);
+        else if (e.key === 'Enter' || e.key === '=') this.handleToken('=');
+        else if (e.key === 'Backspace') this.backspace();
+        else if (e.key === 'Escape' || e.key.toLowerCase() === 'c') this.handleToken('C');
+      });
+    }
+    
+    handleToken(tok) {
+      if (tok === 'C') return this.clearAll();
+      if (tok === '=') return this.calculate();
+      if (tok === 'ANS') return this.append(this.lastResult);
+      if (tok === 'M+') { this.memory += this.lastResult; return; }
+      if (tok === 'M-') { this.memory -= this.lastResult; return; }
+      if (tok === 'MR') return this.append(this.memory);
+      if (tok === 'MC') { this.memory = 0; return; }
+      if (tok === 'phi') return this.append('phi');
+      if (tok === 'gamma') return this.append('gamma');
+      if (tok === '°C→°F') return this.convertTemp('CtoF');
+      if (tok === '°F→°C') return this.convertTemp('FtoC');
+      if (tok === 'km→m' || tok === 'm→km' || tok === 'g→kg' || tok === 'kg→g') {
+        const conversions = {'km→m': 'kmToM', 'm→km': 'mToKm', 'g→kg': 'gToKg', 'kg→g': 'kgToG'};
+        return this.convertUnit(conversions[tok]);
       }
-      append(ch) {
-        if (this.percentMode) return this.buildPercent(ch);
-        if (this.just && !/[+\-*/^]/.test(ch)) this.expr = '';
-        if (this.just && /[+\-*/^]/.test(ch)) this.expr = this.last + ch;
-        else this.expr += ch;
-        this.display.textContent = this.expr || '0';
-        this.just = false;
+      
+      // For all other tokens (numbers, operators, functions)
+      this.append(tok);
+    }
+    
+    append(char) {
+      if (this.justCalculated && !/[+\-*/^%]/.test(char)) {
+          this.expr = ''; // Start new expression if a number is pressed after '='
       }
-      startPercentMode() {
-        // always enter percent input mode
-        this.percentMode = true;
-        this.percentVal = '';
-        this.display.textContent = '';
-        this.just = false;
+      if (this.justCalculated && /[+\-*/^%]/.test(char)) {
+          this.expr = this.lastResult.toString(); // Use last result in new calculation
       }
-      buildPercent(ch) {
-        if (!/[0-9.]/.test(ch)) return;
-        this.percentVal += ch;
-        this.display.textContent = this.percentVal + '%';
-      }
-      calculate() {
-        if (this.percentMode) return this.finishPercent();
-        try {
-          const res = math.evaluate(this.expr);
-          this.showResult(res, `${this.expr} = ${res}`);
-        } catch (err) {
-          this.resultEl.textContent = err.message.includes('Parenthesis') ? 'Mismatched parentheses' : 'Syntax error';
-        }
-      }
-      finishPercent() {
-        const p = parseFloat(this.percentVal) / 100;
-        const res = this.last * p;
-        this.showResult(res, `${this.last} × ${this.percentVal}% = ${res}`);
-        this.percentMode = false;
-      }
-      showResult(res, histEntry) {
-        this.resultEl.textContent = res;
-        this.last = res;
-        this.just = true;
-        this.history.unshift(histEntry);
-        if (this.history.length > 50) this.history.pop();
-        this.renderHistory();
-      }
-      backspace() {
-        this.expr = this.expr.slice(0, -1);
-        this.display.textContent = this.expr || '0';
-      }
-      clearAll() {
-        this.expr = '';
-        this.display.textContent = '0';
-        this.resultEl.textContent = '0';
-        this.just = false;
-      }
-      convertTemp(mode) {
-        const val = (this.expr && !this.just) ? parseFloat(this.expr) : this.last;
-        let res;
-        if (mode === 'CtoF') res = val * 9/5 + 32;
-        else res = (val - 32) * 5/9;
-        this.showResult(res, `${val} ${mode === 'CtoF' ? '°C→' : '°F→'}${res.toFixed(2)}°${mode === 'CtoF' ? 'F' : 'C'}`);
-      }
-      convertUnit(unit) {
-        const val = (this.expr && !this.just) ? parseFloat(this.expr) : this.last;
-        let res, label;
-        switch (unit) {
-          case 'kmToM': res = val * 1000; label = `km → m`; break;
-          case 'mToKm': res = val / 1000; label = `m → km`; break;
-          case 'gToKg': res = val / 1000; label = `g → kg`; break;
-          case 'kgToG': res = val * 1000; label = `kg → g`; break;
-        }
-        this.showResult(res, `${val} ${label} = ${res.toFixed(2)}`);
-      }
-      toggleGraph() {
-        if (this.canvas.style.display === 'block') { this.canvas.style.display = 'none'; return; }
-        this.canvas.style.display = 'block';
-        const expr = prompt('Plot f(x)=', this.expr || 'x');
-        if (!expr) return;
-        const f = math.compile(expr);
-        const { width, height } = this.canvas;
-        this.ctx.clearRect(0, 0, width, height);
-        this.ctx.beginPath();
-        for (let i = 0; i <= width; i++) {
-          const x = (i / width) * 20 - 10;
-          let y;
-          try { y = f.evaluate({ x }); } catch { return; }
-          const j = height / 2 - (y / 10) * (height / 2);
-          i === 0 ? this.ctx.moveTo(i, j) : this.ctx.lineTo(i, j);
-        }
-        this.ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--fg').trim();
-        this.ctx.stroke();
-      }
-      renderHistory() {
-        this.filtered = this.history;
-        this._renderHistory();
-        this.saveHistory(this.history);
-      }
-      filterHistory(q) {
-        const term = q.toLowerCase();
-        this.filtered = this.history.filter(h => h.toLowerCase().includes(term));
-        this._renderHistory();
-      }
-      _renderHistory() {
-        this.historyContent.innerHTML = this.filtered.length
-          ? this.filtered.map(h => `<div class="history-entry">${h}</div>`).join('')
-          : '<p>No matches.</p>';
-      }
-      clearHistory() {
-        this.history = [];
-        this.renderHistory();
-      }
-      exportHistory(fmt) {
-        if (!this.history.length) { alert('No history'); return; }
-        const header = fmt === 'csv' ? 'Expression,Result\n' : '';
-        const body = this.history.map(h => fmt === 'csv' ? h.replace(' = ', ',') : h).join('\n');
-        const blob = new Blob([header + body], { type: 'text/plain' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `history.${fmt}`;
-        a.click();
+      this.justCalculated = false;
+      this.expr += char;
+      this.display.textContent = this.expr || '0';
+    }
+    
+    calculate() {
+      if (!this.expr) return;
+      try {
+        const res = math.evaluate(this.expr);
+        this.showResult(res, `${this.expr} = ${res}`);
+      } catch (err) {
+        this.resultEl.textContent = err.message.includes('Parenthesis') ? 'Mismatched ()' : 'Syntax Error';
       }
     }
-    window.onload = () => { window.calc = new Calculator(); };
-  </script>
+    
+    showResult(res, histEntry) {
+      const formattedRes = Number(res.toPrecision(15)); // Format to avoid floating point issues
+      this.resultEl.textContent = formattedRes;
+      this.lastResult = formattedRes;
+      this.justCalculated = true;
+      this.history.unshift(histEntry);
+      if (this.history.length > 100) this.history.pop(); // Limit history size
+      this.renderHistory();
+      this.saveHistory(this.history);
+    }
+    
+    backspace() {
+      this.expr = this.expr.slice(0, -1);
+      this.display.textContent = this.expr || '0';
+      this.justCalculated = false;
+    }
+    
+    clearAll() {
+      this.expr = '';
+      this.display.textContent = '0';
+      this.resultEl.textContent = '0';
+      this.justCalculated = false;
+    }
+    
+    convertTemp(mode) {
+      const val = (this.expr && !this.justCalculated) ? parseFloat(this.expr) : this.lastResult;
+      if (isNaN(val)) return;
+      let res;
+      if (mode === 'CtoF') res = val * 9/5 + 32;
+      else res = (val - 32) * 5/9;
+      this.showResult(res, `${val}${mode === 'CtoF' ? '°C' : '°F'} → ${res.toFixed(2)}${mode === 'CtoF' ? '°F' : '°C'}`);
+    }
+    
+    convertUnit(unit) {
+      const val = (this.expr && !this.justCalculated) ? parseFloat(this.expr) : this.lastResult;
+      if (isNaN(val)) return;
+      let res, label;
+      switch (unit) {
+        case 'kmToM': res = val * 1000; label = `km → m`; break;
+        case 'mToKm': res = val / 1000; label = `m → km`; break;
+        case 'gToKg': res = val / 1000; label = `g → kg`; break;
+        case 'kgToG': res = val * 1000; label = `kg → g`; break;
+      }
+      this.showResult(res, `${val} ${label} = ${res}`);
+    }
+    
+    toggleGraph() {
+        if (this.canvas.style.display === 'block') {
+            this.canvas.style.display = 'none';
+            return;
+        }
+        this.canvas.style.display = 'block';
+        const expr = prompt('Enter an expression for f(x):', this.expr.includes('x') ? this.expr : 'x^2');
+        if (!expr) {
+            this.canvas.style.display = 'none';
+            return;
+        }
+        try {
+            const f = math.compile(expr);
+            const { width, height } = this.canvas;
+            const xMin = -10, xMax = 10;
+            const yMin = -10, yMax = 10;
+
+            this.ctx.clearRect(0, 0, width, height);
+            this.ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--fg').trim();
+            this.ctx.lineWidth = 2;
+
+            // Draw axes
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, height / 2);
+            this.ctx.lineTo(width, height / 2);
+            this.ctx.moveTo(width / 2, 0);
+            this.ctx.lineTo(width / 2, height);
+            this.ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--panel-border').trim();
+            this.ctx.stroke();
+            this.ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--fg').trim();
+            
+            // Draw function
+            this.ctx.beginPath();
+            let firstPoint = true;
+            for (let i = 0; i <= width; i++) {
+                const x = xMin + (i / width) * (xMax - xMin);
+                const y = f.evaluate({ x: x });
+                if (isFinite(y)) {
+                    const canvasX = i;
+                    const canvasY = height - ((y - yMin) / (yMax - yMin)) * height;
+                    if (firstPoint) {
+                        this.ctx.moveTo(canvasX, canvasY);
+                        firstPoint = false;
+                    } else {
+                        this.ctx.lineTo(canvasX, canvasY);
+                    }
+                }
+            }
+            this.ctx.stroke();
+        } catch (err) {
+            alert('Invalid function: ' + err.message);
+            this.canvas.style.display = 'none';
+        }
+    }
+    
+    renderHistory() {
+      this.filteredHistory = this.history;
+      this._renderHistoryView();
+    }
+    
+    filterHistory(query) {
+      const term = query.toLowerCase();
+      this.filteredHistory = this.history.filter(h => h.toLowerCase().includes(term));
+      this._renderHistoryView();
+    }
+    
+    _renderHistoryView() {
+      if (this.filteredHistory.length > 0) {
+        this.historyContent.innerHTML = this.filteredHistory.map(h => {
+            const [expr] = h.split('=');
+            return `<div class="history-entry" title="Click to use expression">${h}</div>`;
+        }).join('');
+
+        this.historyContent.querySelectorAll('.history-entry').forEach((entry, index) => {
+            entry.addEventListener('click', () => {
+                const [expr] = this.filteredHistory[index].split('=');
+                this.expr = expr.trim();
+                this.display.textContent = this.expr;
+                this.justCalculated = false;
+                this.historyPanel.classList.remove('show');
+            });
+        });
+
+      } else {
+          this.historyContent.innerHTML = '<p style="text-align: center; color: #888;">No history found.</p>';
+      }
+    }
+    
+    clearHistory() {
+      if (confirm('Are you sure you want to clear all history?')) {
+        this.history = [];
+        this.renderHistory();
+        this.saveHistory(this.history);
+      }
+    }
+    
+    exportHistory(fmt) {
+      if (!this.history.length) { alert('History is empty.'); return; }
+      const header = fmt === 'csv' ? 'Expression,Result\n' : '';
+      const body = this.history.map(h => fmt === 'csv' ? h.replace(' = ', ',') : h).join('\n');
+      const blob = new Blob([header + body], { type: fmt === 'csv' ? 'text/csv' : 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `calculator-history.${fmt}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  }
+  
+  // Initialize the calculator once the window loads
+  window.onload = () => {
+    window.calc = new Calculator();
+  };
+</script>
 </body>
 </html>
